@@ -5,7 +5,7 @@ extern "C" {
 }
 
 #include <grpc/support/log.h>
-#include <google/protobuf/stubs/logging.h>
+#include <absl/log/log_sink_registry.h>
 
 #include "str_view.hpp"
 #include "trace_context.hpp"
@@ -22,6 +22,7 @@ struct OtelCtx {
 
 struct MainConf {
     ngx_str_t endpoint;
+    ngx_str_t sslServerCertificate;
     ngx_msec_t interval;
     size_t batchSize;
     size_t batchCount;
@@ -107,6 +108,12 @@ ngx_command_t gExporterCommands[] = {
       ngx_conf_set_str_slot,
       0,
       offsetof(MainConf, endpoint) },
+
+    { ngx_string("ssl_server_certificate"),
+      NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      0,
+      offsetof(MainConf, sslServerCertificate) },
 
     { ngx_string("interval"),
       NGX_CONF_TAKE1,
@@ -507,18 +514,22 @@ void grpcLogHandler(gpr_log_func_args* args)
     ngx_log_error(level, ngx_cycle->log, 0, "OTel/grpc: %s", args->message);
 }
 
-void protobufLogHandler(google::protobuf::LogLevel logLevel,
-    const char* filename, int line, const std::string& msg)
-{
-    using namespace google::protobuf;
+class ProtobufLogSink : public absl::LogSink {
+ public:
+  ProtobufLogSink() { absl::AddLogSink(this); }
 
-    ngx_uint_t level = logLevel == LOGLEVEL_FATAL   ? NGX_LOG_EMERG :
-                       logLevel == LOGLEVEL_ERROR   ? NGX_LOG_ERR :
-                       logLevel == LOGLEVEL_WARNING ? NGX_LOG_WARN :
-                                 /*LOGLEVEL_INFO*/    NGX_LOG_INFO;
+  ~ProtobufLogSink() override { absl::RemoveLogSink(this); }
 
-    ngx_log_error(level, ngx_cycle->log, 0, "OTel/protobuf: %s", msg.c_str());
-}
+  void Send(const absl::LogEntry& entry) override {
+    auto severity = entry.log_severity();
+    ngx_uint_t level = severity == absl::LogSeverity::kFatal   ? NGX_LOG_EMERG :
+                       severity == absl::LogSeverity::kError   ? NGX_LOG_ERR :
+                       severity == absl::LogSeverity::kWarning ? NGX_LOG_WARN :
+                                 /*absl::LogSeverity::kInfo*/    NGX_LOG_INFO;
+    auto message = entry.text_message_with_prefix_and_newline_c_str();
+    ngx_log_error(level, ngx_cycle->log, 0, "OTel/protobuf: %s", message);
+  }
+};
 
 ngx_int_t initModule(ngx_conf_t* cf)
 {
@@ -542,7 +553,7 @@ ngx_int_t initModule(ngx_conf_t* cf)
     *h = onRequestEnd;
 
     gpr_set_log_function(grpcLogHandler);
-    google::protobuf::SetLogHandler(protobufLogHandler);
+    new ProtobufLogSink(); // auto registers
 
     return NGX_OK;
 }
@@ -560,6 +571,7 @@ ngx_int_t initWorkerProcess(ngx_cycle_t* cycle)
     try {
         gExporter.reset(new BatchExporter(
             toStrView(mcf->endpoint),
+            toStrView(mcf->sslServerCertificate),
             mcf->batchSize,
             mcf->batchCount,
             toStrView(mcf->serviceName)));

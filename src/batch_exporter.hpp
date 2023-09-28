@@ -111,9 +111,9 @@ public:
         int attrSize{0};
     };
 
-    BatchExporter(StrView target,
+    BatchExporter(StrView target, StrView sslServerCertificate,
             size_t batchSize, size_t batchCount, StrView serviceName) :
-        batchSize(batchSize), client(std::string(target))
+        batchSize(batchSize), client(std::string(target), std::string(sslServerCertificate))
     {
         free.reserve(batchCount);
         while (batchCount-- > 0) {

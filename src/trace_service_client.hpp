@@ -1,6 +1,8 @@
 #pragma once
 
+#include <fstream>
 #include <functional>
+#include <sstream>
 
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/alarm.h>
@@ -17,10 +19,18 @@ public:
     typedef std::function<void (Request, Response, grpc::Status)>
         ResponseCb;
 
-    TraceServiceClient(const std::string& target)
+    TraceServiceClient(const std::string& target, const std::string& sslServerCertificate)
     {
-        auto channel = grpc::CreateChannel(
-            target, grpc::InsecureChannelCredentials());
+        auto creds = grpc::InsecureChannelCredentials(); // no cacert_path
+        if (!sslServerCertificate.empty()) {
+            grpc::SslCredentialsOptions options = {
+                readFile(sslServerCertificate),
+                "",
+                ""
+            };
+            creds = grpc::SslCredentials(options);
+        }
+        auto channel = grpc::CreateChannel(target, creds);
         channel->GetState(true); // trigger 'connecting' state
 
         stub = TraceService::NewStub(channel);
@@ -85,6 +95,20 @@ public:
     }
 
 private:
+    grpc::string readFile(const std::string& filePath) const {
+        std::ifstream file(filePath);
+
+        if (!file.is_open()) {
+            throw std::runtime_error("Failed to open file: " + filePath);
+        }
+
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        file.close();
+
+        return grpc::string(buffer.str());
+    }
+
     struct ActiveCall {
         grpc::Alarm sendAlarm;
         bool sent;
