@@ -18,7 +18,18 @@ set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 if(NGX_OTEL_FETCH_DEPS)
     include(FetchContent)
 
+    set(ABSL_PROPAGATE_CXX_STD ON)
+    set(ABSL_USE_STATIC_LIBS ON)
     set(ABSL_ENABLE_INSTALL ON)
+    FetchContent_Declare(
+      absl
+      GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
+      GIT_TAG        origin/master
+      OVERRIDE_FIND_PACKAGE
+    )
+    # FetchContent_MakeAvailable(absl)
+    # set(ABSL_ENABLE_INSTALL ON)
+    # find_package(absl REQUIRED)
 
     FetchContent_Declare(
         grpc
