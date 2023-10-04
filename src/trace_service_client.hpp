@@ -22,7 +22,7 @@ public:
     TraceServiceClient(const std::string& target, const std::string& sslServerCertificate)
     {
         auto creds = grpc::InsecureChannelCredentials(); // no cacert_path
-        if (!sslServerCertificate.empty()) {
+        if (!sslServerCertificate.empty() && sslServerCertificate != "none") {
             grpc::SslCredentialsOptions options = {
                 readFile(sslServerCertificate),
                 "",
