@@ -34,7 +34,7 @@ if(NGX_OTEL_FETCH_DEPS)
     FetchContent_Declare(
         grpc
         GIT_REPOSITORY https://github.com/grpc/grpc
-        GIT_TAG        0417b882aa7abc1512f534e56f9cd97c557bb68f # v1.58.0
+        GIT_TAG        0ef13a7555dbaadd4633399242524129eef5e231 # v1.60.0
         GIT_SUBMODULES third_party/protobuf third_party/abseil-cpp
         GIT_SHALLOW    ON)
 
@@ -48,7 +48,7 @@ if(NGX_OTEL_FETCH_DEPS)
     FetchContent_Declare(
         otelcpp
         GIT_REPOSITORY https://github.com/open-telemetry/opentelemetry-cpp
-        GIT_TAG        11d5d9e0d8fd8ba876c8994714cc2647479b6574 # v1.11.0
+        GIT_TAG        4bd64c9a336fd438d6c4c9dad2e6b61b0585311f # v1.13.0
         GIT_SUBMODULES third_party/opentelemetry-proto
         GIT_SHALLOW    ON)
 

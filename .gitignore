@@ -14,3 +14,8 @@ Thumbs.db
 # Logs #
 ########
 *.log
+
+# builds #
+##########
+/build
+/nginx/objs
